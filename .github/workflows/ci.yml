@@ -75,4 +75,4 @@ jobs:
               fi
             done
           } > comment.md
-          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -f body=@comment.md
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -F body=@comment.md
