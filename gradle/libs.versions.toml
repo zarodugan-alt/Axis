@@ -1,0 +1,51 @@
+# AXIS dependency catalog — P1 set.
+# P2+ additions (Room, SQLCipher, OkHttp/SSE, WorkManager, Security-Crypto, Coil,
+# Lottie, Vico, Balloon, sherpa-onnx, tess-two, OpenCV, NanoHTTPD, ACRA,
+# AboutLibraries, …) get appended here as their phases land.
+[versions]
+agp = "8.3.2"
+kotlin = "1.9.22"
+ksp = "1.9.22-1.0.17"
+hilt = "2.51.1"
+composeBom = "2024.02.02"
+composeCompiler = "1.5.10"
+activityCompose = "1.9.0"
+navigationCompose = "2.7.7"
+lifecycleRuntimeCompose = "2.7.0"
+hiltNavigationCompose = "1.2.0"
+coreKtx = "1.12.0"
+coroutines = "1.8.1"
+datastore = "1.0.0"
+timber = "5.0.1"
+junit = "4.13.2"
+compileSdk = "34"
+minSdk = "28"
+targetSdk = "28"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

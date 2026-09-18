@@ -1,0 +1,20 @@
+# Android / Gradle
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.hprof
+
+# AXIS: OFL variable fonts are downloaded at build time by :ui:downloadFonts
+# (see ui/build.gradle.kts) — never commit the binaries.
+ui/src/main/res/font/*_var.ttf
+
+# Keystore / signing — never commit
+*.jks
+*.keystore
