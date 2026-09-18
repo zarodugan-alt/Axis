@@ -75,7 +75,7 @@ jobs:
                 echo "<details><summary><code>$f</code> — errors</summary>"
                 echo ""
                 echo '```'
-                grep -E "FAILED|error:|e: |Caused by" "$f" | head -25
+                grep -E "FAILED|error:|e: |Caused by" "$f" | head -150
                 echo '```'
                 echo "</details>"
                 echo ""

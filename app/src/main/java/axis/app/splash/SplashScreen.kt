@@ -71,7 +71,7 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
-            AxisOrb(OrbState.IDLE, size = 96.dp)
+            AxisOrb(OrbState.IDLE, orbSize = 96.dp)
             Spacer(Modifier.height(24.dp))
             Text("AXIS", style = AxisType.Display.copy(letterSpacing = 8.sp))
         }

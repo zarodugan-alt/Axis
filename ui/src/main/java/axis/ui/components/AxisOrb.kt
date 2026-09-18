@@ -1,14 +1,15 @@
 package axis.ui.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -19,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.Stroke
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
@@ -54,14 +57,14 @@ enum class OrbState { IDLE, LISTENING, THINKING, ACTING, ERROR }
 fun AxisOrb(
     state: OrbState,
     modifier: Modifier = Modifier,
-    size: Dp = 120.dp,
+    orbSize: Dp = 120.dp,
     stepPulse: Int = 0
 ) {
     val clock = rememberInfiniteTransition(label = "orb")
     val breath by clock.animateFloat(
         initialValue = 1f,
         targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = FastOutSlowEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(1800, easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)), RepeatMode.Reverse),
         label = "breath"
     )
     val innerAngle by clock.animateFloat(
@@ -102,7 +105,7 @@ fun AxisOrb(
     }
 
     val density = LocalDensity.current
-    val rPx = remember(size, density) { with(density) { size.toPx() / 2f } }
+    val rPx = remember(orbSize, density) { with(density) { orbSize.toPx() / 2f } }
     val dash = remember { PathEffect.dashPathEffect(floatArrayOf(14f, 12f), 0f) }
     val outerStroke = remember(rPx, dash) {
         Stroke(width = (rPx * 0.028f).coerceAtLeast(2f), pathEffect = dash)
@@ -111,7 +114,7 @@ fun AxisOrb(
         Stroke(width = (rPx * 0.05f).coerceAtLeast(3f), cap = StrokeCap.Round)
     }
 
-    Canvas(modifier = modifier.size(size)) {
+    Canvas(modifier = modifier.size(orbSize)) {
         val r = size.minDimension / 2f
         val cx = size.width / 2f
         val cy = size.height / 2f

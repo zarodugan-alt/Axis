@@ -52,7 +52,7 @@ fun AxisDialog(
     buttons: (@Composable RowScope.() -> Unit)? = null
 ) {
     if (onDismiss != null) {
-        BackHandler(onDismiss = onDismiss)
+        BackHandler(onBack = onDismiss)
     }
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }

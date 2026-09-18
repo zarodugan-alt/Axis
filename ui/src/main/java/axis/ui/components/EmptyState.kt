@@ -38,7 +38,7 @@ fun ComingSoon(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        AxisOrb(OrbState.IDLE, size = 72.dp)
+        AxisOrb(OrbState.IDLE, orbSize = 72.dp)
         Spacer(Modifier.height(16.dp))
         GlassChip(label = phase, icon = Icons.Rounded.AutoAwesome, compact = true)
         Spacer(Modifier.height(16.dp))

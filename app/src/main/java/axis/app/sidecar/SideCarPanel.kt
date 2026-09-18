@@ -127,7 +127,7 @@ fun SideCarPanel(
     ) {
         // Header — parallax 1.0x (rides with the panel).
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AxisOrb(OrbState.IDLE, size = 28.dp)
+            AxisOrb(OrbState.IDLE, orbSize = 28.dp)
             Text(
                 "AXIS CORE",
                 style = AxisType.Section,

@@ -51,7 +51,7 @@ fun AxisBottomSheet(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    BackHandler(onDismiss = onDismiss)
+    BackHandler(onBack = onDismiss)
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 

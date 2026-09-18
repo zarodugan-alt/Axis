@@ -109,7 +109,7 @@ fun HomeScreen(
         ) {
             AxisOrb(
                 state = OrbState.IDLE,
-                size = 120.dp,
+                orbSize = 120.dp,
                 modifier = Modifier.alpha(if (basicMode) 0.6f else 1f)
             )
         }
