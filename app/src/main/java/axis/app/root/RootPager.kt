@@ -59,7 +59,6 @@ import axis.ui.theme.AxisBackground
 import axis.ui.theme.AxisHaptics
 import axis.ui.theme.Motion
 import axis.ui.theme.Scrim
-import axis.ui.theme.TextSecondary
 import axis.ui.theme.glass
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop

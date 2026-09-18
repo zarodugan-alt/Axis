@@ -115,13 +115,13 @@ fun AxisOrb(
         val r = size.minDimension / 2f
         val cx = size.width / 2f
         val cy = size.height / 2f
-        val scale = breath * (1f + 0.05f * activeW) + burst.value * 0.12f
+        val coreScale = breath * (1f + 0.05f * activeW) + burst.value * 0.12f
         val glowA = (0.55f + 0.45f * activeW).coerceIn(0f, 1f)
 
         // Glow halo (layered solid circles — no gradient brushes, no allocs).
-        drawCircle(coreColor.copy(alpha = 0.10f * glowA), radius = r * 1.5f * scale)
-        drawCircle(coreColor.copy(alpha = 0.14f * glowA), radius = r * 1.18f * scale)
-        drawCircle(coreColor.copy(alpha = 0.18f * glowA), radius = r * 0.88f * scale)
+        drawCircle(coreColor.copy(alpha = 0.10f * glowA), radius = r * 1.5f * coreScale)
+        drawCircle(coreColor.copy(alpha = 0.14f * glowA), radius = r * 1.18f * coreScale)
+        drawCircle(coreColor.copy(alpha = 0.18f * glowA), radius = r * 0.88f * coreScale)
 
         // Outer dashed ring, counter-rotating.
         rotate(outerAngle, pivot = center) {

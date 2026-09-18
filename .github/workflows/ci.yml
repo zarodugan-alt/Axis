@@ -65,10 +65,24 @@ jobs:
             echo ""
             for f in assemble.log test.log lint.log; do
               if [ -f "$f" ]; then
-                echo "<details><summary><code>$f</code> (tail)</summary>"
+                echo "<details><summary><code>$f</code> — what went wrong</summary>"
                 echo ""
                 echo '```'
-                tail -c 15000 "$f"
+                grep -B 2 -A 30 "What went wrong" "$f" | head -60
+                echo '```'
+                echo "</details>"
+                echo ""
+                echo "<details><summary><code>$f</code> — errors</summary>"
+                echo ""
+                echo '```'
+                grep -E "FAILED|error:|e: |Caused by" "$f" | head -25
+                echo '```'
+                echo "</details>"
+                echo ""
+                echo "<details><summary><code>$f</code> — tail</summary>"
+                echo ""
+                echo '```'
+                tail -c 6000 "$f"
                 echo '```'
                 echo "</details>"
                 echo ""
