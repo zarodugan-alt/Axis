@@ -262,7 +262,7 @@ private fun TaskRowView(task: TaskRow) {
 }
 
 @Composable
-private fun ModeChip(
+private fun RowScope.ModeChip(
     label: String,
     mode: String,
     activeMode: String,
