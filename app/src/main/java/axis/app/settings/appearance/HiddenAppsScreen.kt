@@ -132,9 +132,3 @@ fun HiddenAppsScreen(
         }
     }
 }
-
-@Suppress("unused")
-private fun unusedCombineGuard() {
-    // Keeps the combine import referenced until P2 adds search-in-hidden.
-    val _ref = ::combine
-}

@@ -64,6 +64,3 @@ private fun ComingSoonPreview() {
         )
     }
 }
-
-@Suppress("unused")
-private val IconGuard: Icon? = null

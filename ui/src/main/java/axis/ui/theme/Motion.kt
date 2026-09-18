@@ -16,6 +16,9 @@ object Motion {
     /** Same tuning as [DefaultSpring] for Dp-typed animations (pills, offsets). */
     val DefaultDpSpring = spring<Dp>(dampingRatio = 0.8f, stiffness = 300f)
 
+    /** Same tuning for sheet/slide enter-exit animations. */
+    val DefaultSpringIntOffset = spring<IntOffset>(dampingRatio = 0.8f, stiffness = 300f)
+
     const val MICRO_MS = 150
     const val STAGGER_MS = 30
     const val SHIMMER_MS = 1200

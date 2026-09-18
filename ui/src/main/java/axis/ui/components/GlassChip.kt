@@ -38,11 +38,13 @@ fun GlassChip(
     icon: ImageVector? = null,
     active: Boolean = false,
     accent: Color = AccentCyan,
+    /** Compact (32dp) is only for non-interactive chips — tappable chips stay 48dp. */
+    compact: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val border = if (active) accent.copy(alpha = 0.6f) else GlassBorder
     var chipMod = modifier
-        .height(48.dp)
+        .height(if (compact) 32.dp else 48.dp)
         .glass(corner = 50.dp, borderColor = border)
     if (active) chipMod = chipMod.glow(accent, radius = 12.dp)
     if (onClick != null) {

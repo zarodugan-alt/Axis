@@ -3,8 +3,10 @@ package axis.ui.components
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -20,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -31,6 +32,7 @@ import axis.ui.theme.AccentCyan
 import axis.ui.theme.AxisRadii
 import axis.ui.theme.AxisTheme
 import axis.ui.theme.AxisType
+import axis.ui.theme.BgElevated
 import axis.ui.theme.Motion
 
 /**
@@ -104,7 +106,7 @@ fun AppIcon(
                 modifier = Modifier
                     .size(size)
                     .clip(RoundedCornerShape(AxisRadii.appIcon))
-                    .then(Modifier),
+                    .background(BgElevated),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -128,7 +130,7 @@ fun AppIcon(
                     .offset(x = 2.dp, y = (-2).dp)
                     .size(8.dp)
                     .clip(CircleShape)
-                    .then(Modifier)
+                    .background(AccentCyan)
             )
         }
     }

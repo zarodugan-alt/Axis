@@ -84,7 +84,7 @@ val downloadFonts by tasks.registering {
             }
             logger.lifecycle("downloading font: $name")
             try {
-                java.net.URI(url).toURL().openStream().use { input ->
+                URI(url).toURL().openStream().use { input ->
                     out.outputStream().use { output -> input.copyTo(output) }
                 }
             } catch (e: Exception) {
