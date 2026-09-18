@@ -5,6 +5,12 @@ on:
     branches: ["**"]
   pull_request:
 
+# The report step posts failure-log tails as commit comments (the build
+# agent's network cannot reach the Actions log service, but the GitHub API
+# works). No other step writes to the repo.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,13 +34,19 @@ jobs:
           gradle-version: "8.4"
 
       - name: Assemble debug
-        run: gradle assembleDebug --stacktrace --console=plain
+        run: |
+          set -o pipefail
+          gradle assembleDebug --stacktrace --console=plain 2>&1 | tee assemble.log
 
       - name: Unit tests
-        run: gradle testDebugUnitTest --stacktrace --console=plain
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest --stacktrace --console=plain 2>&1 | tee test.log
 
       - name: NewApi lint (minSdk 28 gate)
-        run: gradle lintDebug --stacktrace --console=plain
+        run: |
+          set -o pipefail
+          gradle lintDebug --stacktrace --console=plain 2>&1 | tee lint.log
 
       - name: Upload debug APK
         if: success()
@@ -42,3 +54,25 @@ jobs:
         with:
           name: axis-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Report failure logs to commit
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## CI failure on \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA::8}"
+            echo ""
+            for f in assemble.log test.log lint.log; do
+              if [ -f "$f" ]; then
+                echo "<details><summary><code>$f</code> (tail)</summary>"
+                echo ""
+                echo '```'
+                tail -c 15000 "$f"
+                echo '```'
+                echo "</details>"
+                echo ""
+              fi
+            done
+          } > comment.md
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -f body=@comment.md

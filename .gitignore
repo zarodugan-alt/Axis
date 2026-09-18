@@ -18,3 +18,6 @@ ui/src/main/res/font/*_var.ttf
 # Keystore / signing — never commit
 *.jks
 *.keystore
+
+# CI step logs (tee'd by the workflow for failure reporting)
+*.log
