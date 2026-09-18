@@ -37,6 +37,9 @@ compose-animation = { module = "androidx.compose.animation:animation" }
 compose-animation-core = { module = "androidx.compose.animation:animation-core" }
 compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 compose-ui-text = { module = "androidx.compose.ui:ui-text" }
+compose-ui-unit = { module = "androidx.compose.ui:ui-unit" }
+compose-ui-geometry = { module = "androidx.compose.ui:ui-geometry" }
+compose-ui-util = { module = "androidx.compose.ui:ui-util" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
 compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }

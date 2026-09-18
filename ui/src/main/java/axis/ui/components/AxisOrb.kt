@@ -175,7 +175,7 @@ fun AxisOrb(
         )
 
         // Core sphere + offset specular highlight.
-        scale(scale, pivot = center) {
+        scale(breath, pivot = center) {
             drawCircle(coreColor.copy(alpha = 0.35f), radius = r * 0.66f)
             drawCircle(coreColor, radius = r * 0.52f)
             drawCircle(
