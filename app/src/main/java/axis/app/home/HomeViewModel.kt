@@ -19,7 +19,6 @@ import axis.sense.notify.NotificationInbox
 import axis.sense.screen.AxisAccessibilityService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.Calendar
 import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -201,21 +200,6 @@ class HomeViewModel @Inject constructor(
                 emit(Unit)
                 delay(60_000)
             }
-        }
-
-        fun currentHour(nowMillis: Long = System.currentTimeMillis()): Int =
-            Calendar.getInstance().apply { timeInMillis = nowMillis }
-                .get(Calendar.HOUR_OF_DAY)
-
-        fun greetingFor(hour: Int, name: String?): String {
-            val part = when (hour) {
-                in 5..11 -> "Good morning"
-                in 12..16 -> "Good afternoon"
-                in 17..21 -> "Good evening"
-                else -> "Still up"
-            }
-            val who = name?.takeIf { it.isNotBlank() } ?: return part
-            return "$part, $who"
         }
     }
 }
