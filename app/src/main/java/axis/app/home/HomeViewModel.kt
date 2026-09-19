@@ -8,7 +8,7 @@ import axis.act.action.SystemActions
 import axis.act.routine.RoutineEngine
 import axis.app.data.ProviderStore
 import axis.app.data.SettingsStore
-import axis.app.data.UsageRepository
+import axis.agent.usage.UsageLedger
 import axis.app.drawer.AppRepository
 import axis.kernel.model.AppEntry
 import axis.kernel.search.FuzzySearch
@@ -60,7 +60,7 @@ class HomeViewModel @Inject constructor(
     private val device: DeviceStateRepository,
     private val inbox: NotificationInbox,
     private val routines: RoutineEngine,
-    private val usage: UsageRepository,
+    private val usage: UsageLedger,
     private val providerStore: ProviderStore,
     private val settings: SettingsStore,
     private val systemActions: SystemActions,
