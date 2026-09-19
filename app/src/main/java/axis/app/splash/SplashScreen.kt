@@ -81,7 +81,7 @@ fun SplashScreen(
                     .offset { IntOffset(0, (scan.value * constraints.maxHeight).roundToInt()) }
                     .fillMaxWidth()
                     .height(2.dp)
-                    .background(AcccentCyan.copy(alpha = 0.8f))
+                    .background(AccentCyan.copy(alpha = 0.8f))
             )
         }
     }

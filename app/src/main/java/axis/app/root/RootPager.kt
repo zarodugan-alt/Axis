@@ -1,10 +1,13 @@
 package axis.app.root
 
+@file:OptIn(ExperimentalFoundationApi::class)
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -143,7 +146,7 @@ fun RootPager(
             ) {
                 HorizontalPager(
                     state = pagerState,
-                    beyondViewportPageCount = 1,
+                    beyondBoundsPageCount = 1,
                     modifier = Modifier.fillMaxSize(),
                     key = { it }
                 ) { page ->
@@ -265,7 +268,6 @@ private fun PagerPage(
                         scaleX = s
                         scaleY = s
                         alpha = lerp(1f, 0.4f, fraction)
-                        translationZ = -8f * density.density * fraction
                     }
                 }
             }
