@@ -5,15 +5,19 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import axis.app.onboarding.OnboardingPlaceholder
 import axis.app.root.RootPager
 import axis.app.settings.PlaceholderScreen
 import axis.app.settings.SettingsRootScreen
 import axis.app.settings.appearance.AppearanceScreen
 import axis.app.settings.appearance.HiddenAppsScreen
+import axis.app.settings.providers.ProviderDetailScreen
+import axis.app.settings.providers.ProvidersScreen
 import axis.app.splash.SplashScreen
 
 /**
@@ -83,11 +87,17 @@ fun RootNav() {
             )
         }
         stack(Routes.SETTINGS_PROVIDERS) {
-            PlaceholderScreen(
-                title = "AI Providers",
-                phase = "Phase 3",
-                description = "BYOK setup for Groq, Mistral, Gemini and Unreal Speech — " +
-                    "paste-key validation, model pickers and routing modes.",
+            ProvidersScreen(
+                onNavigate = { nav.navigate(it) },
+                onBack = { nav.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.SETTINGS_PROVIDER_DETAIL,
+            arguments = listOf(navArgument("id") { type = NavType.StringType })
+        ) { entry ->
+            ProviderDetailScreen(
+                providerId = entry.arguments?.getString("id"),
                 onBack = { nav.popBackStack() }
             )
         }

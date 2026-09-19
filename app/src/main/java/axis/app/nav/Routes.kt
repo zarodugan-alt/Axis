@@ -12,7 +12,10 @@ object Routes {
     fun routineDetail(id: String) = "routine_detail/$id"
 
     const val SETTINGS = "settings"
-    const val SETTINGS_PROVIDERS = "settings/providers" // P3
+    const val SETTINGS_PROVIDERS = "settings/providers"
+    const val SETTINGS_PROVIDER_DETAIL = "settings/providers/{id}"
+    fun providerDetail(id: String) = "settings/providers/$id"
+
     const val SETTINGS_APPEARANCE = "settings/appearance" // P1 (real)
     const val SETTINGS_AUTOMATIONS = "settings/automations" // P3
     const val SETTINGS_NOTIFICATIONS = "settings/notifications" // P2

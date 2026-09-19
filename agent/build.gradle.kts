@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-// P3 module — stub in P1 (see README.md in this directory).
+// P3 module — LLM gateway + agent loop (see README.md).
 android {
     namespace = "axis.agent"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -26,6 +26,12 @@ android {
 }
 
 dependencies {
+    // Pure-Kotlin module: HTTP + protocol translation + the agent loop.
+    // Deliberately has NO Android or Hilt dependencies (no KSP here) so all
+    // of the gateway logic is testable on the JVM.
     implementation(project(":kernel"))
     implementation(libs.kotlinx.coroutines.android)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

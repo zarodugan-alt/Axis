@@ -71,7 +71,8 @@ fun SettingsRootScreen(
             }
             Spacer(Modifier.height(8.dp))
             SettingsNavRow(
-                title = "AI Providers", subtitle = "0 connected · Phase 3",
+                title = "AI Providers",
+                subtitle = "BYOK keys, models, routing",
                 icon = Icons.Rounded.Memory, onClick = { go(Routes.SETTINGS_PROVIDERS) }
             )
             SettingsNavRow(

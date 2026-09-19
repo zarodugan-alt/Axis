@@ -5,6 +5,11 @@
          :ui Haptics (performHapticFeedback needs none; Vibrator.vibrate does). -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- BYOK: every model request goes straight from the device to the
+         provider the user configured. No AXIS server exists. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".AxisApplication"
         android:label="@string/app_name"

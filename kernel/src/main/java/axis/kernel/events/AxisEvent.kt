@@ -61,4 +61,71 @@ sealed interface AxisEvent {
         val reason: String,
         override val ts: Long = System.currentTimeMillis()
     ) : AxisEvent
+
+    // --------------------------------------------------------------- P2/P3
+
+    /** A notification was dismissed by the user or the app (inbox pruning). */
+    data class NotificationRemoved(
+        val key: String,
+        val pkg: String,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** Foreground service liveness changed (CoreService watchdog). */
+    data class CoreServiceState(
+        val running: Boolean,
+        val mode: String,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** A routine fired (or was skipped) — drives the home board + audit log. */
+    data class RoutineFired(
+        val routineId: String,
+        val routineName: String,
+        val trigger: String,
+        val actionsRun: Int,
+        val ok: Boolean,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** A single automation action finished. */
+    data class ActionExecuted(
+        val action: String,
+        val detail: String,
+        val ok: Boolean,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** Provider/key state changed (kept free of secrets on purpose). */
+    data class ProviderChanged(
+        val providerId: String,
+        val kind: String,
+        val detail: String,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** One gateway request finished (drives the usage dashboard live). */
+    data class UsageRecorded(
+        val providerId: String,
+        val model: String,
+        val kind: String,
+        val ok: Boolean,
+        val latencyMs: Long,
+        val tokens: Int,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** Kill switch state changed — everything autonomous stops on `true`. */
+    data class KillSwitchToggled(
+        val engaged: Boolean,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
+
+    /** A confirm gate opened or resolved (safety audit trail). */
+    data class GateResolved(
+        val callId: String,
+        val tool: String,
+        val approved: Boolean,
+        override val ts: Long = System.currentTimeMillis()
+    ) : AxisEvent
 }
