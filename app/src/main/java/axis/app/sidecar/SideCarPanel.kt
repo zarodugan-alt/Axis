@@ -166,8 +166,8 @@ fun SideCarPanel(
                 Text("ACTIVE TASKS", style = AxisType.Section)
                 Spacer(Modifier.height(8.dp))
                 if (state.tasks.isEmpty()) {
-                    Text("No tasks running", style = AxisType.Caption)
-                    Text("Automations arrive in Phase 3", style = AxisType.Caption)
+                    Text("No routines running", style = AxisType.Caption)
+                    Text("Arm one in Automations to see it here", style = AxisType.Caption)
                 } else {
                     state.tasks.forEach { TaskRowView(task = it) }
                 }
@@ -184,7 +184,7 @@ fun SideCarPanel(
                 Spacer(Modifier.height(8.dp))
                 TelemetryReadout(values = state.telemetry)
                 Text(
-                    "History sparkline arrives in Phase 2",
+                    "Latency history builds up as you use AXIS",
                     style = AxisType.Caption,
                     modifier = Modifier.padding(top = 8.dp)
                 )

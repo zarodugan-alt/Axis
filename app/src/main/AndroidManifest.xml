@@ -1,14 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- P1 needs no dangerous permissions. VIBRATE backs the haptic pulses in
-         :ui Haptics (performHapticFeedback needs none; Vibrator.vibrate does). -->
+    <!-- Haptics: performHapticFeedback needs nothing, the Vibrator pulses do. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- BYOK: every model request goes straight from the device to the
          provider the user configured. No AXIS server exists. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Voice input (SpeechRecognizer) — optional, requested at first use. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Flashlight tool + camera permission for the torch callback. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+
+    <!-- Do Not Disturb control for routines and the DND tool. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <!-- Runtime notification permission on API 33+ (harmless below). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      The launcher must see every launchable app. `<queries>` (not
+      QUERY_ALL_PACKAGES) keeps the visibility surface to exactly what a
+      launcher needs.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.WEB_SEARCH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
 
     <application
         android:name=".AxisApplication"
@@ -45,5 +84,34 @@
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
+
+        <!-- P2 · notification listener: captures, triages and holds
+             notifications. Bound by the system, granted explicitly by the
+             user in Notification access. -->
+        <service
+            android:name="axis.sense.notify.AxisNotificationListenerService"
+            android:exported="true"
+            android:label="@string/notification_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- P2 · accessibility service: foreground app + window title context.
+             No text capture, no gesture injection. -->
+        <service
+            android:name="axis.sense.screen.AxisAccessibilityService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            tools:ignore="AccessibilityPolicy">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/axis_accessibility_service" />
+        </service>
     </application>
 </manifest>

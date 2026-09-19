@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AXIS</string>
+    <string name="accessibility_description">AXIS uses accessibility to tell which app is in front, so routines and the assistant can respond to context. AXIS never reads passwords or typed text.</string>
+    <string name="notification_listener_label">AXIS notification access</string>
 </resources>

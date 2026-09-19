@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Memory
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -39,8 +41,8 @@ import axis.ui.theme.AxisType
 import axis.ui.theme.TextSecondary
 
 /**
- * Settings root (spec §S10). Appearance is real in P1; every other group
- * routes to its honest placeholder until its phase lands.
+ * Settings root (spec §S10). Every group routes to a real screen —
+ * providers, chat, automations, rules, voice, safety, usage, status, appearance.
  */
 @Composable
 fun SettingsRootScreen(
@@ -76,35 +78,53 @@ fun SettingsRootScreen(
                 icon = Icons.Rounded.Memory, onClick = { go(Routes.SETTINGS_PROVIDERS) }
             )
             SettingsNavRow(
-                title = "Appearance", subtitle = "Transition, haptics, icons",
-                icon = Icons.Rounded.Palette, onClick = { go(Routes.SETTINGS_APPEARANCE) }
+                title = "Chat with AXIS",
+                subtitle = "Streaming agent, tools, confirmations",
+                icon = Icons.Rounded.Chat, onClick = { go(Routes.CHAT) }
             )
             SettingsNavRow(
-                title = "Automations", subtitle = "Phase 3",
-                icon = Icons.Rounded.Bolt, onClick = { go(Routes.SETTINGS_AUTOMATIONS) }
+                title = "Automations",
+                subtitle = "Armed routines, triggers, run history",
+                icon = Icons.Rounded.Bolt, onClick = { go(Routes.ROUTINES) }
             )
             SettingsNavRow(
-                title = "Notification Rules", subtitle = "Phase 2",
+                title = "Notification Rules",
+                subtitle = "Priority apps, keywords, quiet hours",
                 icon = Icons.Rounded.Notifications, onClick = { go(Routes.SETTINGS_NOTIFICATIONS) }
             )
             SettingsNavRow(
-                title = "Voice", subtitle = "Phase 4",
+                title = "Voice",
+                subtitle = "Speech in, speech out, spoken replies",
                 icon = Icons.Rounded.Mic, onClick = { go(Routes.SETTINGS_VOICE) }
             )
             SettingsNavRow(
-                title = "Safety", subtitle = "Phase 3",
+                title = "Safety",
+                subtitle = "Kill switch, gates, protected apps, audit",
                 icon = Icons.Rounded.Shield, onClick = { go(Routes.SETTINGS_SAFETY) }
             )
             SettingsNavRow(
-                title = "Usage Dashboard", subtitle = "Phase 4",
+                title = "Usage Dashboard",
+                subtitle = "Requests, tokens, latency, failures",
                 icon = Icons.Rounded.BarChart, onClick = { go(Routes.SETTINGS_USAGE) }
             )
             SettingsNavRow(
-                title = "Advanced", subtitle = "Phase 4",
+                title = "System status",
+                subtitle = "Permissions and services, live",
+                icon = Icons.Rounded.Speed, onClick = { go(Routes.SYSTEM_STATUS) }
+            )
+            SettingsNavRow(
+                title = "Appearance",
+                subtitle = "Transition, haptics, icons",
+                icon = Icons.Rounded.Palette, onClick = { go(Routes.SETTINGS_APPEARANCE) }
+            )
+            SettingsNavRow(
+                title = "Advanced",
+                subtitle = "Logs, export, Flow Studio, webhook",
                 icon = Icons.Rounded.Build, onClick = { go(Routes.SETTINGS_ADVANCED) }
             )
             SettingsNavRow(
-                title = "About", subtitle = "Phase 2",
+                title = "About",
+                subtitle = "Version, licences, credits",
                 icon = Icons.Rounded.Info, onClick = { go(Routes.SETTINGS_ABOUT) }
             )
             Spacer(Modifier.height(24.dp))

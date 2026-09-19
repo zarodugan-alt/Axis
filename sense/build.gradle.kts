@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-// P2 module — stub in P1 (see README.md in this directory).
+// filled in phase work (see README.md).
 android {
     namespace = "axis.sense"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -28,4 +28,5 @@ android {
 dependencies {
     implementation(project(":kernel"))
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.timber)
 }

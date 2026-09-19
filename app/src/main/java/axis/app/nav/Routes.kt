@@ -26,5 +26,7 @@ object Routes {
     const val SETTINGS_ABOUT = "settings/about" // P2
     const val HIDDEN_APPS = "settings/appearance/hidden" // P1 (real)
 
-    const val FLOW_STUDIO = "flow_studio" // P4
+    const val FLOW_STUDIO = "flow_studio"
+    const val NOTIFICATIONS = "notifications"
+    const val SYSTEM_STATUS = "system_status"
 }

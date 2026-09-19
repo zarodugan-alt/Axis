@@ -1,16 +1,23 @@
 package axis.app.home
 
+import android.content.Context
 import android.graphics.drawable.Drawable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import axis.act.action.SystemActions
+import axis.act.routine.RoutineEngine
+import axis.app.data.ProviderStore
 import axis.app.data.SettingsStore
 import axis.app.drawer.AppRepository
 import axis.kernel.model.AppEntry
 import axis.kernel.search.FuzzySearch
-import axis.ui.components.PriorityData
-import axis.ui.components.SuggestionItem
-import axis.ui.components.SuggestionState
+import axis.sense.DeviceStateRepository
+import axis.sense.DeviceSnapshot
+import axis.sense.notify.NotificationAccess
+import axis.sense.notify.NotificationInbox
+import axis.sense.screen.AxisAccessibilityService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -21,58 +28,82 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** Everything the circuit home renders, refreshed on one slow ticker. */
+data class HomeState(
+    val snapshot: DeviceSnapshot = DeviceSnapshot(),
+    val loadHistory: List<Float> = emptyList(),
+    val providersConnected: Int = 0,
+    val speechReady: Boolean = false,
+    val unread: Int = 0,
+    val routinesEnabled: Int = 0,
+    val lastRoutine: String? = null,
+    val killSwitch: Boolean = false,
+    val notificationAccess: Boolean = false,
+    val screenAccess: Boolean = false,
+    val ready: Boolean = false
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repo: AppRepository,
-    val settings: SettingsStore
+    private val device: DeviceStateRepository,
+    private val inbox: NotificationInbox,
+    private val routines: RoutineEngine,
+    private val providerStore: ProviderStore,
+    private val settings: SettingsStore,
+    private val systemActions: SystemActions,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     val query = MutableStateFlow("")
 
-    /** Live app results while typing (top 8); empty when idle. */
+    /** Live app results while typing (top 6); empty when idle. */
     val searchResults: StateFlow<List<AppEntry>> =
         combine(repo.visibleApps, query) { list, q ->
-            if (q.isBlank()) emptyList()
-            else FuzzySearch.filter(q, list) { it.label }.take(8)
+            if (q.isBlank()) emptyList() else FuzzySearch.filter(q, list) { it.label }.take(6)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val suggested: StateFlow<SuggestionState> =
-        combine(repo.isReady, repo.suggested(5)) { ready, list ->
-            if (!ready) SuggestionState.Loading
-            else SuggestionState.Loaded(
-                list.map { SuggestionItem(it.packageName, it.label, repo.iconFor(it.packageName)) }
-            )
-        }.flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SuggestionState.Loading)
+    val greeting: StateFlow<String> = combine(settings.userName, minuteTicker) { name, _ ->
+        greetingFor(currentHour(), name)
+    }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000),
+        greetingFor(currentHour(), null)
+    )
 
-    val greeting: StateFlow<String> =
-        combine(settings.userName, minuteTicker) { name, _ ->
-            greetingFor(currentHour(), name)
-        }.stateIn(
-            viewModelScope, SharingStarted.WhileSubscribed(5000),
-            greetingFor(currentHour(), null)
+    private val loadSamples = mutableListOf<Float>()
+
+    val state: StateFlow<HomeState> = combine(
+        ticker,
+        inbox.unreadCount,
+        providerStore.connectedIds,
+        routines.routines,
+        settings.killSwitchState
+    ) { _, unread, connected, routineList, kill ->
+        val snapshot = device.sample()
+        loadSamples.add(snapshot.cpuLoad)
+        while (loadSamples.size > 40) loadSamples.removeAt(0)
+        HomeState(
+            snapshot = snapshot,
+            loadHistory = loadSamples.toList(),
+            providersConnected = connected.count { id -> providerStore.providers.value.any { it.id == id && it.isChat } },
+            speechReady = connected.any { id -> providerStore.providers.value.any { it.id == id && it.isSpeech } },
+            unread = unread,
+            routinesEnabled = routineList.count { it.enabled },
+            lastRoutine = routineList.filter { it.lastRunAt > 0 }
+                .maxByOrNull { it.lastRunAt }?.name,
+            killSwitch = kill,
+            notificationAccess = NotificationAccess.isGranted(context),
+            screenAccess = AxisAccessibilityService.isEnabled(context),
+            ready = true
         )
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeState())
 
-    /**
-     * NEXT UP snapshot. Empty in P1 (calendar/priority/routines land in
-     * P2–P4), so the card hides itself — never fake data.
-     */
-    val priority: StateFlow<PriorityData> =
-        MutableStateFlow(PriorityData()).stateIn(
-            viewModelScope, SharingStarted.WhileSubscribed(5000), PriorityData()
-        )
-
-    /** P1 is always Basic Mode (no providers); P3 drives this from the capability manifest. */
-    val basicMode: StateFlow<Boolean> =
-        MutableStateFlow(true).stateIn(
-            viewModelScope, SharingStarted.WhileSubscribed(5000), true
-        )
-
-    val hapticsEnabled: StateFlow<Boolean> = settings.hapticsEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    // ------------------------------------------------------------- actions
 
     fun setQuery(q: String) {
         query.value = q
@@ -88,12 +119,78 @@ class HomeViewModel @Inject constructor(
 
     fun openWallpaperPicker() = repo.openWallpaperPicker()
 
+    fun openAppInfo(packageName: String) = repo.openAppInfo(packageName)
+
+    fun toggleTorch(on: Boolean) {
+        viewModelScope.launch {
+            val result = systemActions.setTorch(on)
+            if (!result.ok) lastAction.value = result.detail
+        }
+    }
+
+    fun toggleDnd(on: Boolean) {
+        viewModelScope.launch { lastAction.value = systemActions.setDnd(on).detail }
+    }
+
+    fun toggleRotation(locked: Boolean) {
+        viewModelScope.launch { lastAction.value = systemActions.setRotationLocked(locked).detail }
+    }
+
+    fun nudgeBrightness(delta: Int) {
+        viewModelScope.launch {
+            val current = device.sample().brightness * 100 / 255
+            lastAction.value = systemActions.setBrightness(current + delta).detail
+        }
+    }
+
+    fun openSettingsPage(page: String) {
+        viewModelScope.launch { lastAction.value = systemActions.openSettingsPage(page).detail }
+    }
+
+    fun clearNotifications() = inbox.clear()
+
+    fun setKillSwitch(engaged: Boolean) {
+        viewModelScope.launch { settings.setKillSwitch(engaged) }
+    }
+
+    fun runRoutine(id: String) = routines.runNow(id)
+
+    /** Last action feedback shown as a HUD toast line. */
+    val lastAction = MutableStateFlow<String?>(null)
+
+    fun clearActionMessage() {
+        lastAction.value = null
+    }
+
     companion object {
+        private val ticker: Flow<Unit> = flow {
+            while (true) {
+                emit(Unit)
+                delay(5_000)
+            }
+        }
+
+        /** Re-emits once a minute so the greeting tracks the clock. */
         private val minuteTicker: Flow<Unit> = flow {
             while (true) {
                 emit(Unit)
                 delay(60_000)
             }
+        }
+
+        fun currentHour(nowMillis: Long = System.currentTimeMillis()): Int =
+            java.util.Calendar.getInstance().apply { timeInMillis = nowMillis }
+                .get(java.util.Calendar.HOUR_OF_DAY)
+
+        fun greetingFor(hour: Int, name: String?): String {
+            val part = when (hour) {
+                in 5..11 -> "Good morning"
+                in 12..16 -> "Good afternoon"
+                in 17..21 -> "Good evening"
+                else -> "Still up"
+            }
+            val who = name?.takeIf { it.isNotBlank() } ?: return part
+            return "$part, $who"
         }
     }
 }

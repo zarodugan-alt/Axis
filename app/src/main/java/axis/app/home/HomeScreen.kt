@@ -1,11 +1,11 @@
 package axis.app.home
 
-import android.graphics.drawable.Drawable
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,310 +17,252 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Widgets
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import axis.app.chat.ChatHandoff
 import axis.app.nav.Routes
-import axis.kernel.model.AppEntry
-import axis.ui.components.AppIcon
-import axis.ui.components.AxisBottomSheet
+import axis.ui.circuit.CircuitBoard
 import axis.ui.components.AxisOrb
-import axis.ui.components.AxisSearchBar
-import axis.ui.components.GlassCard
 import axis.ui.components.OrbState
-import axis.ui.components.PriorityCard
-import axis.ui.components.SettingsNavRow
-import axis.ui.components.SuggestionRow
+import axis.ui.theme.AccentCyan
 import axis.ui.theme.AxisHaptics
 import axis.ui.theme.AxisSpacing
 import axis.ui.theme.AxisType
-import axis.ui.theme.Motion
+import axis.ui.theme.Danger
+import axis.ui.theme.Success
 import axis.ui.theme.TextSecondary
-import kotlinx.coroutines.delay
+import axis.ui.theme.glass
+import axis.ui.theme.glow
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * Home (spec §S2): orb + greeting + search + NEXT UP + SUGGESTED.
- * P2 wires pull-down→shade and double-tap→lock (accessibility globals);
- * P3 connects the orb tap to Chat (Basic Mode routes to Providers instead).
+ * The AXIS home board (spec §S2, redesigned): a powered circuit board rather
+ * than an icon grid.
+ *
+ * Top to bottom: silkscreen header → the AI core seated in its IC package →
+ * live subsystem modules → a functional tool rail → a terminal that searches
+ * apps, asks AXIS, or falls back to the web → telemetry.
+ *
+ * Apps are deliberately absent: they live in the drawer, one swipe away.
  */
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit,
     vm: HomeViewModel = hiltViewModel()
 ) {
+    val state by vm.state.collectAsStateWithLifecycle()
     val greeting by vm.greeting.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
     val results by vm.searchResults.collectAsStateWithLifecycle()
-    val suggested by vm.suggested.collectAsStateWithLifecycle()
-    val priority by vm.priority.collectAsStateWithLifecycle()
-    val basicMode by vm.basicMode.collectAsStateWithLifecycle()
-    val haptics by vm.hapticsEnabled.collectAsStateWithLifecycle()
+    val action by vm.lastAction.collectAsStateWithLifecycle()
     val view = LocalView.current
-    var settingsSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scroll = rememberScrollState()
+    var torchAsked by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = AxisSpacing.screen)
+    val cameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) vm.toggleTorch(true) }
+
+    val clock = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+
+    CircuitBoard(
+        modifier = Modifier.fillMaxSize(),
+        pulseCount = 8,
+        intensity = if (state.killSwitch) 0.55f else 1f
     ) {
-        Spacer(Modifier.height(24.dp))
-
-        // Orb: tap → Chat (or Providers in Basic Mode), long-press → Voice.
-        Box(
+        Column(
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .pointerInput(basicMode) {
-                    detectTapGestures(
-                        onTap = {
-                            AxisHaptics.press(view, haptics)
-                            onNavigate(if (basicMode) Routes.SETTINGS_PROVIDERS else Routes.CHAT)
-                        },
-                        onLongPress = {
-                            AxisHaptics.longPress(view, haptics)
-                            onNavigate(Routes.SETTINGS_VOICE)
-                        }
-                    )
-                }
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(scroll)
+                .padding(horizontal = AxisSpacing.screen)
         ) {
-            AxisOrb(
-                state = OrbState.IDLE,
-                orbSize = 120.dp,
-                modifier = Modifier.alpha(if (basicMode) 0.6f else 1f)
+            Spacer(Modifier.height(10.dp))
+
+            BoardHeader(
+                clock = clock.format(Date()),
+                status = buildString {
+                    append(state.snapshot.network.uppercase())
+                    append(" · ")
+                    append(state.snapshot.batteryPct)
+                    append("%")
+                    if (state.snapshot.charging) append("+")
+                },
+                accent = if (state.killSwitch) Danger else AccentCyan
             )
-        }
-        if (basicMode) {
-            Text(
-                text = "AI not set up — tap the orb to connect",
-                style = AxisType.Caption,
-                textAlign = TextAlign.Center,
+
+            Spacer(Modifier.height(AxisSpacing.section))
+
+            // --------------------------------------------------- core module
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onNavigate(Routes.SETTINGS_PROVIDERS) }
+                    .glass(
+                        corner = 24.dp,
+                        borderColor = if (state.killSwitch) Danger.copy(alpha = 0.6f)
+                        else AccentCyan.copy(alpha = 0.45f)
                     )
-                    .padding(vertical = 4.dp)
-            )
-        }
-
-        // Greeting doubles as a long-press empty-zone (home settings).
-        Text(
-            text = greeting,
-            style = AxisType.Display,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectTapGestures(onLongPress = {
-                        AxisHaptics.longPress(view, haptics)
-                        settingsSheet = true
-                    })
+                    .let { if (state.killSwitch) it.glow(Danger, 20.dp) else it }
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("AXIS-C1 // CORE", style = AxisType.Telemetry.copy(color = TextSecondary))
+                    StatePill(
+                        text = if (state.killSwitch) "KILL SWITCH" else "ONLINE",
+                        color = if (state.killSwitch) Danger else Success
+                    )
                 }
-                .padding(vertical = 8.dp)
-        )
-
-        Spacer(Modifier.height(8.dp))
-        AxisSearchBar(
-            query = query,
-            onQueryChange = vm::setQuery,
-            hint = if (basicMode) "Search apps…" else "Ask or search…",
-            onMicClick = { onNavigate(Routes.SETTINGS_VOICE) },
-            onSearch = { q ->
-                // P3: route to chat/agent; P1 launches a sole exact match.
-                val exact = results.firstOrNull { it.label.equals(q.trim(), ignoreCase = true) }
-                if (exact != null) vm.launch(exact.packageName)
-            }
-        )
-
-        if (query.isBlank()) {
-            if (!priority.isEmpty) {
-                Spacer(Modifier.height(AxisSpacing.section))
-                Text("NEXT UP", style = AxisType.Section)
                 Spacer(Modifier.height(8.dp))
-                PriorityCard(data = priority)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .glass(corner = 18.dp)
+                        .pointerInput(state.providersConnected) {
+                            detectTapGestures(
+                                onTap = {
+                                    AxisHaptics.press(view, state.ready)
+                                    onNavigate(
+                                        if (state.providersConnected == 0) Routes.SETTINGS_PROVIDERS
+                                        else Routes.CHAT
+                                    )
+                                },
+                                onLongPress = {
+                                    AxisHaptics.longPress(view, state.ready)
+                                    onNavigate(Routes.SETTINGS_VOICE)
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AxisOrb(state = OrbState.IDLE, orbSize = 116.dp)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(greeting, style = AxisType.Title)
+                Text(
+                    if (state.providersConnected == 0) "tap to connect an AI provider"
+                    else "${state.providersConnected} provider" +
+                        (if (state.providersConnected == 1) "" else "s") +
+                        " wired · tap to talk · hold to speak",
+                    style = AxisType.Caption
+                )
             }
+
+            action?.let { message ->
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .glass(corner = 12.dp, borderColor = axis.ui.theme.Warning.copy(alpha = 0.5f))
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("!", style = AxisType.BodyStrong)
+                    Spacer(Modifier.height(0.dp))
+                    Text(
+                        message,
+                        style = AxisType.Caption,
+                        color = axis.ui.theme.Warning,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+
             Spacer(Modifier.height(AxisSpacing.section))
-            Text("SUGGESTED", style = AxisType.Section)
-            Spacer(Modifier.height(12.dp))
-            SuggestionRow(
-                state = suggested,
-                onAppClick = {
-                    AxisHaptics.press(view, haptics)
-                    vm.launch(it)
-                }
-            )
-        } else {
-            Spacer(Modifier.height(AxisSpacing.cardGap))
-            SearchResultsCard(
-                results = results,
-                query = query,
-                iconFor = vm::iconFor,
-                onAppClick = {
-                    AxisHaptics.press(view, haptics)
-                    vm.launch(it)
-                },
-                onWebSearch = {
-                    AxisHaptics.press(view, haptics)
-                    vm.webSearch(query)
-                }
-            )
-        }
 
-        // Bottom empty-zone: long-press → home settings. Also clears dots.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(onLongPress = {
-                        AxisHaptics.longPress(view, haptics)
-                        settingsSheet = true
-                    })
-                }
-        )
-    }
-
-    if (settingsSheet) {
-        AxisBottomSheet(onDismiss = { settingsSheet = false }) {
-            Text("Home", style = AxisType.Title)
+            Text("SUBSYSTEMS", style = AxisType.Section)
             Spacer(Modifier.height(8.dp))
-            SettingsNavRow(
-                title = "Wallpaper",
-                subtitle = "System picker",
-                icon = Icons.Rounded.Image,
-                onClick = {
-                    settingsSheet = false
-                    vm.openWallpaperPicker()
-                }
+            ModuleGrid(
+                state = state,
+                onNavigate = onNavigate,
+                haptics = { AxisHaptics.tick(view, state.ready) }
             )
-            SettingsNavRow(
-                title = "Widgets",
-                subtitle = "Arrives in Phase 4",
-                icon = Icons.Rounded.Widgets,
-                onClick = { /* P4 — row shows the plan, does nothing yet */ }
-            )
-            SettingsNavRow(
-                title = "Appearance",
-                subtitle = "Transition, haptics, icons",
-                icon = Icons.Rounded.Palette,
-                onClick = {
-                    settingsSheet = false
-                    onNavigate(Routes.SETTINGS_APPEARANCE)
-                }
-            )
-        }
-    }
-}
 
-@Composable
-private fun SearchResultsCard(
-    results: List<AppEntry>,
-    query: String,
-    iconFor: (String) -> Drawable?,
-    onAppClick: (String) -> Unit,
-    onWebSearch: () -> Unit
-) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        if (results.isEmpty()) {
-            Text(
-                "No apps match “${query.trim()}”",
-                style = AxisType.Body,
-                color = TextSecondary
-            )
-        } else {
-            results.forEachIndexed { index, app ->
-                SearchResultRow(
-                    app = app,
-                    index = index,
-                    icon = iconFor(app.packageName),
-                    onClick = { onAppClick(app.packageName) }
-                )
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onWebSearch
-                )
-        ) {
-            Icon(Icons.Rounded.Search, contentDescription = null, tint = TextSecondary)
-            Text(
-                "Search web for “${query.trim()}”",
-                style = AxisType.Body,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 16.dp)
-            )
-        }
-    }
-}
+            Spacer(Modifier.height(AxisSpacing.section))
 
-@Composable
-private fun SearchResultRow(
-    app: AppEntry,
-    index: Int,
-    icon: Drawable?,
-    onClick: () -> Unit
-) {
-    val enter = remember { Animatable(0f) }
-    val density = LocalDensity.current
-    LaunchedEffect(app.packageName) {
-        delay((index * Motion.STAGGER_MS).toLong())
-        enter.animateTo(1f, tween(200))
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .graphicsLayer {
-                alpha = enter.value
-                translationY = (1f - enter.value) * with(density) { 24.dp.toPx() }
-            }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
+            Text("TOOLS", style = AxisType.Section)
+            Spacer(Modifier.height(8.dp))
+            ToolRail(
+                state = state,
+                onTorch = { wanted ->
+                    val granted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted || torchAsked) {
+                        vm.toggleTorch(wanted)
+                    } else {
+                        torchAsked = true
+                        runCatching { cameraPermission.launch(Manifest.permission.CAMERA) }
+                    }
+                },
+                onDnd = vm::toggleDnd,
+                onRotation = vm::toggleRotation,
+                onBrightness = vm::nudgeBrightness,
+                onSettings = vm::openSettingsPage,
+                onKillSwitch = vm::setKillSwitch,
+                haptics = { AxisHaptics.press(view, state.ready) }
             )
-    ) {
-        AppIcon(icon = icon, label = app.label, size = 40.dp)
-        Text(
-            app.label,
-            style = AxisType.BodyStrong,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 16.dp)
-        )
+
+            Spacer(Modifier.height(AxisSpacing.section))
+
+            Text("TERMINAL", style = AxisType.Section)
+            Spacer(Modifier.height(8.dp))
+            Terminal(
+                query = query,
+                results = results,
+                onQueryChange = vm::setQuery,
+                iconFor = vm::iconFor,
+                onLaunch = { pkg ->
+                    AxisHaptics.press(view, state.ready)
+                    vm.launch(pkg)
+                },
+                onAsk = { q ->
+                    AxisHaptics.press(view, state.ready)
+                    vm.setQuery("")
+                    ChatHandoff.prompt.value = q
+                    onNavigate(Routes.CHAT)
+                },
+                onWeb = { q ->
+                    AxisHaptics.press(view, state.ready)
+                    vm.webSearch(q)
+                },
+                onAppInfo = vm::openAppInfo,
+                haptics = { AxisHaptics.longPress(view, state.ready) }
+            )
+
+            Spacer(Modifier.height(AxisSpacing.section))
+
+            Text("TELEMETRY", style = AxisType.Section)
+            Spacer(Modifier.height(8.dp))
+            TelemetryPanel(state = state)
+
+            Spacer(Modifier.height(28.dp))
+            Text(
+                "APPS LIVE IN THE DRAWER — SWIPE LEFT",
+                style = AxisType.Caption.copy(color = TextSecondary)
+            )
+            Spacer(Modifier.height(64.dp))
+        }
     }
 }

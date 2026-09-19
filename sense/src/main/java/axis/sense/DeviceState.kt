@@ -184,14 +184,37 @@ class DeviceStateRepository(private val context: Context) {
 
     // --------------------------------------------------------------- torch
 
-    fun readTorch(): Boolean = try {
-        val id = cameraManager?.cameraIdList?.firstOrNull { camId ->
-            val chars = cameraManager?.getCameraCharacteristics(camId)
-            chars?.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+    // Torch state is *tracked*, not polled: camera2 has no public
+    // getTorchMode(), so the repository subscribes to the platform callback
+    // once and mirrors it into an atomic flag.
+    private val torchState = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    @Volatile
+    private var torchTracking = false
+
+    private fun ensureTorchTracking() {
+        if (torchTracking) return
+        val cm = cameraManager ?: return
+        runCatching {
+            cm.registerTorchCallback(
+                object : CameraManager.TorchCallback() {
+                    override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+                        torchState.set(enabled)
+                    }
+
+                    override fun onTorchModeUnavailable(cameraId: String) {
+                        torchState.set(false)
+                    }
+                },
+                android.os.Handler(android.os.Looper.getMainLooper())
+            )
+            torchTracking = true
         }
-        id != null && cameraManager?.getTorchMode(id) == CameraManager.TORCH_MODE_ENABLED
-    } catch (_: Exception) {
-        false
+    }
+
+    fun readTorch(): Boolean {
+        ensureTorchTracking()
+        return torchState.get()
     }
 
     fun hasFlash(): Boolean = try {
