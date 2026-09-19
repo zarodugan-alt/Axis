@@ -36,6 +36,14 @@ fun Modifier.glassViolet(corner: Dp = AxisRadii.card): Modifier =
 fun Modifier.glassDanger(corner: Dp = AxisRadii.card): Modifier =
     glass(corner = corner, borderColor = GlassBorderDanger)
 
+/** Success glass: positive confirmations, success states. */
+fun Modifier.glassSuccess(corner: Dp = AxisRadii.card): Modifier =
+    glass(corner = corner, borderColor = GlassBorderSuccess)
+
+/** Warning glass: caution states, warnings. */
+fun Modifier.glassWarning(corner: Dp = AxisRadii.card): Modifier =
+    glass(corner = corner, borderColor = GlassBorderWarning)
+
 /** Solid glass: dialogs/sheets over busy backgrounds (legibility first). */
 fun Modifier.glassSolid(corner: Dp = AxisRadii.card): Modifier {
     val shape = RoundedCornerShape(corner)
