@@ -8,6 +8,7 @@ import axis.act.action.SystemActions
 import axis.act.routine.RoutineEngine
 import axis.app.data.ProviderStore
 import axis.app.data.SettingsStore
+import axis.app.data.UsageRepository
 import axis.app.drawer.AppRepository
 import axis.kernel.model.AppEntry
 import axis.kernel.search.FuzzySearch
@@ -18,8 +19,8 @@ import axis.sense.notify.NotificationInbox
 import axis.sense.screen.AxisAccessibilityService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.Calendar
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,12 +28,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** Everything the circuit home renders, refreshed on one slow ticker. */
+/**
+ * Everything the circuit board renders. One 2-second ticker drives the
+ * telemetry; everything else is a real flow (notifications, providers,
+ * routines, kill switch) so the board never shows stale state.
+ */
 data class HomeState(
     val snapshot: DeviceSnapshot = DeviceSnapshot(),
     val loadHistory: List<Float> = emptyList(),
@@ -44,6 +48,9 @@ data class HomeState(
     val killSwitch: Boolean = false,
     val notificationAccess: Boolean = false,
     val screenAccess: Boolean = false,
+    val storageWrites: Boolean = false,
+    val dndAccess: Boolean = false,
+    val flashAvailable: Boolean = false,
     val ready: Boolean = false
 )
 
@@ -53,6 +60,7 @@ class HomeViewModel @Inject constructor(
     private val device: DeviceStateRepository,
     private val inbox: NotificationInbox,
     private val routines: RoutineEngine,
+    private val usage: UsageRepository,
     private val providerStore: ProviderStore,
     private val settings: SettingsStore,
     private val systemActions: SystemActions,
@@ -74,6 +82,14 @@ class HomeViewModel @Inject constructor(
         greetingFor(currentHour(), null)
     )
 
+    val userName: StateFlow<String?> = settings.userName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Requests in the last 24h — shown on the VAULT/USAGE module. */
+    val requestsToday: StateFlow<Int> = usage.records
+        .map { list -> list.count { it.ts > System.currentTimeMillis() - 86_400_000 } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     private val loadSamples = mutableListOf<Float>()
 
     val state: StateFlow<HomeState> = combine(
@@ -84,11 +100,13 @@ class HomeViewModel @Inject constructor(
         settings.killSwitchState
     ) { _, unread, connected, routineList, kill ->
         val snapshot = device.sample()
-        loadSamples.add(snapshot.cpuLoad)
-        while (loadSamples.size > 40) loadSamples.removeAt(0)
+        synchronized(loadSamples) {
+            loadSamples.add(snapshot.cpuLoad)
+            while (loadSamples.size > 40) loadSamples.removeAt(0)
+        }
         HomeState(
             snapshot = snapshot,
-            loadHistory = loadSamples.toList(),
+            loadHistory = synchronized(loadSamples) { loadSamples.toList() },
             providersConnected = connected.count { id -> providerStore.providers.value.any { it.id == id && it.isChat } },
             speechReady = connected.any { id -> providerStore.providers.value.any { it.id == id && it.isSpeech } },
             unread = unread,
@@ -98,10 +116,12 @@ class HomeViewModel @Inject constructor(
             killSwitch = kill,
             notificationAccess = NotificationAccess.isGranted(context),
             screenAccess = AxisAccessibilityService.isEnabled(context),
+            storageWrites = device.canWriteSettings(),
+            dndAccess = device.hasNotificationPolicyAccess(),
+            flashAvailable = device.hasFlash(),
             ready = true
         )
-    }.flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeState())
 
     // ------------------------------------------------------------- actions
 
@@ -124,7 +144,7 @@ class HomeViewModel @Inject constructor(
     fun toggleTorch(on: Boolean) {
         viewModelScope.launch {
             val result = systemActions.setTorch(on)
-            if (!result.ok) lastAction.value = result.detail
+            lastAction.value = result.detail
         }
     }
 
@@ -155,6 +175,10 @@ class HomeViewModel @Inject constructor(
 
     fun runRoutine(id: String) = routines.runNow(id)
 
+    fun setUserName(name: String) {
+        viewModelScope.launch { settings.setUserName(name.take(24)) }
+    }
+
     /** Last action feedback shown as a HUD toast line. */
     val lastAction = MutableStateFlow<String?>(null)
 
@@ -163,10 +187,11 @@ class HomeViewModel @Inject constructor(
     }
 
     companion object {
+        /** Telemetry tick — fast enough to feel live, slow enough to be free. */
         private val ticker: Flow<Unit> = flow {
             while (true) {
                 emit(Unit)
-                delay(5_000)
+                delay(2_000)
             }
         }
 
@@ -179,8 +204,8 @@ class HomeViewModel @Inject constructor(
         }
 
         fun currentHour(nowMillis: Long = System.currentTimeMillis()): Int =
-            java.util.Calendar.getInstance().apply { timeInMillis = nowMillis }
-                .get(java.util.Calendar.HOUR_OF_DAY)
+            Calendar.getInstance().apply { timeInMillis = nowMillis }
+                .get(Calendar.HOUR_OF_DAY)
 
         fun greetingFor(hour: Int, name: String?): String {
             val part = when (hour) {

@@ -29,6 +29,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import axis.agent.usage.UsageLedger
+import axis.agent.usage.latencySeries
 import axis.app.data.UsageRepository
 import axis.ui.components.AxisButton
 import axis.ui.components.AxisButtonStyle
@@ -122,7 +123,7 @@ fun UsageScreen(
                 )
                 Spacer(Modifier.height(10.dp))
                 Sparkline(
-                    data = axis.agent.usage.latencySeries(records).ifEmpty { listOf(0f, 0f) },
+                    data = records.latencySeries().ifEmpty { listOf(0f, 0f) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp)

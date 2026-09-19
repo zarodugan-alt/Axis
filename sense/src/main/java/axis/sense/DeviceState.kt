@@ -1,10 +1,10 @@
 package axis.sense
 
 import android.app.ActivityManager
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
@@ -15,12 +15,15 @@ import android.os.Environment
 import android.os.PowerManager
 import android.os.StatFs
 import android.os.SystemClock
+import android.provider.Settings
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A single sample of everything the home HUD shows. Cheap to build (no
- * binder round-trips beyond what the platform caches) and immutable, so the
- * UI can diff snapshots.
+ * One sample of everything the home board's telemetry strip shows.
+ *
+ * Every field is a real platform read; when a read is unavailable the field
+ * falls back to a neutral value rather than a plausible-looking fake.
  */
 data class DeviceSnapshot(
     val batteryPct: Int = 0,
@@ -50,38 +53,37 @@ data class DeviceSnapshot(
 }
 
 /**
- * Reads device state (spec §F9 "SENSE"). Read-only and permission-light:
- * everything here works with zero runtime permissions on API 28+ — battery,
- * memory, storage, load average, network capabilities and torch state are
- * all publicly readable.
+ * Reads device state for the board (spec §F1, §S2) and the Side-Car systems
+ * panel. Cheap enough to call on a 2-second tick: every read is a system
+ * service getter or a small /proc or StatFs call.
  */
 class DeviceStateRepository(private val context: Context) {
 
-    private val cameraManager: CameraManager?
-        get() = context.getSystemService(CameraManager::class.java)
+    private val cameraManager: CameraManager? =
+        context.getSystemService(CameraManager::class.java)
 
     fun sample(): DeviceSnapshot {
         val battery = readBattery()
-        val net = readNetwork()
+        val network = readNetwork()
         val mem = readMemory()
-        val storage = readStorage()
+        val store = readStorage()
         return DeviceSnapshot(
             batteryPct = battery.pct,
             charging = battery.charging,
             batteryTempC = battery.tempC,
             batteryVoltageMv = battery.voltageMv,
-            network = net.label,
-            wifi = net.wifi,
-            cellular = net.cellular,
-            vpn = net.vpn,
+            network = network.first,
+            wifi = network.second,
+            cellular = network.third,
+            vpn = network.fourth,
             ramUsedPct = mem.usedPct,
             ramUsedMb = mem.usedMb,
             ramTotalMb = mem.totalMb,
-            storageUsedPct = storage.usedPct,
-            storageFreeGb = storage.freeGb,
+            storageUsedPct = store.usedPct,
+            storageFreeGb = store.freeGb,
             cpuLoad = readLoad(),
             cpuCores = Runtime.getRuntime().availableProcessors(),
-            thermalC = battery.tempC,
+            thermalC = readThermal(),
             uptimeMs = SystemClock.elapsedRealtime(),
             screenOn = readScreenOn(),
             torchOn = readTorch(),
@@ -96,61 +98,74 @@ class DeviceStateRepository(private val context: Context) {
     private data class Battery(val pct: Int, val charging: Boolean, val tempC: Float, val voltageMv: Int)
 
     private fun readBattery(): Battery {
-        return try {
-            val intent: Intent? = context.registerReceiver(
-                null,
-                IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-            )
-            if (intent == null) return Battery(0, false, 0f, 0)
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-            val pct = if (level < 0 || scale <= 0) 0 else level * 100 / scale
-            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-            val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
-            val tempC = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f
-            val mv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
-            Battery(pct, charging, tempC, mv)
+        val intent: Intent? = try {
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         } catch (_: Exception) {
-            Battery(0, false, 0f, 0)
-        }
+            null
+        } ?: return Battery(0, false, 0f, 0)
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+        val pct = if (level >= 0 && scale > 0) level * 100 / scale else 0
+        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+            status == BatteryManager.BATTERY_STATUS_FULL
+        val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f
+        val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
+        return Battery(pct, charging, temp, voltage)
     }
 
     // ------------------------------------------------------------- network
 
-    private data class Net(val label: String, val wifi: Boolean, val cellular: Boolean, val vpn: Boolean)
-
-    private fun readNetwork(): Net {
-        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return Net("offline", false, false, false)
-        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return Net("offline", false, false, false)
-        val wifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-        val cell = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-        val vpn = caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-        val label = when {
-            vpn -> "vpn"
-            wifi -> "wi-fi"
-            cell -> "lte"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "eth"
-            else -> "link"
+    /** @return network label, wifi, cellular, vpn. */
+    private fun readNetwork(): Quadruple {
+        return try {
+            val cm = context.getSystemService(ConnectivityManager::class.java)
+                ?: return Quadruple("offline", false, false, false)
+            val active = cm.activeNetwork ?: return Quadruple("offline", false, false, false)
+            val caps = cm.getNetworkCapabilities(active)
+                ?: return Quadruple("offline", false, false, false)
+            val wifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            val cellular = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            val ethernet = caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            val vpn = caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+            val label = when {
+                vpn -> "vpn"
+                wifi -> "wifi"
+                ethernet -> "ethernet"
+                cellular -> when {
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) -> "mobile"
+                    else -> "mobile"
+                }
+                else -> "online"
+            }
+            Quadruple(label, wifi, cellular, vpn)
+        } catch (_: Exception) {
+            Quadruple("offline", false, false, false)
         }
-        val up = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        return Net(if (up) label else "no-internet", wifi, cell, vpn)
     }
+
+    private data class Quadruple(val first: String, val second: Boolean, val third: Boolean, val fourth: Boolean)
 
     // -------------------------------------------------------------- memory
 
     private data class Mem(val usedPct: Int, val usedMb: Int, val totalMb: Int)
 
     private fun readMemory(): Mem {
-        val am = context.getSystemService(ActivityManager::class.java) ?: return Mem(0, 0, 0)
-        val info = ActivityManager.MemoryInfo()
-        am.getMemoryInfo(info)
-        val total = info.totalMem / (1024 * 1024)
-        val avail = info.availMem / (1024 * 1024)
-        val used = (total - avail).coerceAtLeast(0)
-        val pct = if (total <= 0) 0 else (used * 100 / total).toInt()
-        return Mem(pct, used.toInt(), total.toInt())
+        return try {
+            val am = context.getSystemService(ActivityManager::class.java) ?: return Mem(0, 0, 0)
+            val info = ActivityManager.MemoryInfo()
+            am.getMemoryInfo(info)
+            val total = info.totalMem
+            val avail = info.availMem
+            val used = (total - avail).coerceAtLeast(0)
+            val pct = if (total <= 0) 0 else (used * 100 / total).toInt()
+            Mem(pct, (used / (1024 * 1024)).toInt(), (total / (1024 * 1024)).toInt())
+        } catch (_: Exception) {
+            Mem(0, 0, 0)
+        }
     }
+
+    // ------------------------------------------------------------- storage
 
     private data class Store(val usedPct: Int, val freeGb: Float)
 
@@ -177,9 +192,20 @@ class DeviceStateRepository(private val context: Context) {
         }
     }
 
+    private fun readThermal(): Float {
+        // No public thermal API below API 29; approximate from the battery
+        // sensor, which is the signal the OS itself throttles on.
+        val intent = try {
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        } catch (_: Exception) {
+            null
+        }
+        return (intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10f
+    }
+
     private fun readScreenOn(): Boolean {
         val pm = context.getSystemService(PowerManager::class.java) ?: return false
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) pm.isInteractive else @Suppress("DEPRECATION") pm.isScreenOn
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) pm.isInteractive else pm.isScreenOn
     }
 
     // --------------------------------------------------------------- torch
@@ -187,7 +213,7 @@ class DeviceStateRepository(private val context: Context) {
     // Torch state is *tracked*, not polled: camera2 has no public
     // getTorchMode(), so the repository subscribes to the platform callback
     // once and mirrors it into an atomic flag.
-    private val torchState = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val torchState = AtomicBoolean(false)
 
     @Volatile
     private var torchTracking = false
@@ -229,30 +255,23 @@ class DeviceStateRepository(private val context: Context) {
     // ----------------------------------------------------------- settings
 
     private fun readDndFilter(): Int = try {
-        val nm = context.getSystemService(android.app.NotificationManager::class.java)
+        val nm = context.getSystemService(NotificationManager::class.java)
         nm?.currentInterruptionFilter ?: 0
     } catch (_: Exception) {
         0
     }
 
     fun hasNotificationPolicyAccess(): Boolean = try {
-        val nm = context.getSystemService(android.app.NotificationManager::class.java)
+        val nm = context.getSystemService(NotificationManager::class.java)
         nm?.isNotificationPolicyAccessGranted == true
     } catch (_: Exception) {
         false
     }
 
-    /** Only meaningful with WRITE_SETTINGS (checked by the caller). */
-    fun canWriteSettings(): Boolean = try {
-        android.provider.Settings.System.canWrite(context)
-    } catch (_: Exception) {
-        false
-    }
-
     private fun readRotationLocked(): Boolean = try {
-        android.provider.Settings.System.getInt(
+        Settings.System.getInt(
             context.contentResolver,
-            android.provider.Settings.System.ACCELEROMETER_ROTATION,
+            Settings.System.ACCELEROMETER_ROTATION,
             1
         ) == 0
     } catch (_: Exception) {
@@ -260,26 +279,23 @@ class DeviceStateRepository(private val context: Context) {
     }
 
     private fun readBrightness(): Int = try {
-        android.provider.Settings.System.getInt(
-            context.contentResolver,
-            android.provider.Settings.System.SCREEN_BRIGHTNESS,
-            128
-        )
-    } catch (_: Exception) {
-        128
-    }
-
-    /** Installed launcher count — used by the about/system panel. */
-    fun installedAppCount(): Int = try {
-        @Suppress("DEPRECATION")
-        context.packageManager
-            .queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
-            .distinctBy { it.activityInfo?.packageName }
-            .size
+        Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
     } catch (_: Exception) {
         0
     }
 
+    fun canWriteSettings(): Boolean = try {
+        Settings.System.canWrite(context)
+    } catch (_: Exception) {
+        false
+    }
+
     fun hasPermission(permission: String): Boolean =
-        context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+        context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    fun installedAppCount(): Int = try {
+        context.packageManager.getInstalledApplications(0).size
+    } catch (_: Exception) {
+        0
+    }
 }

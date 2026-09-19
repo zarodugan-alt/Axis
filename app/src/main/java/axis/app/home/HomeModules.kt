@@ -1,5 +1,10 @@
 package axis.app.home
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,13 +25,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import axis.ui.components.DotStatus
-import axis.ui.components.GlassChip
 import axis.ui.components.StatusDot
 import axis.ui.theme.AccentCyan
 import axis.ui.theme.AccentViolet
@@ -78,91 +83,157 @@ fun CircuitModule(
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Glyph(glyph = glyph, accent = accent)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                value,
-                style = AxisType.Title.copy(color = TextPrimary),
-                maxLines = 1
-            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    value,
+                    style = AxisType.Title.copy(color = TextPrimary),
+                    maxLines = 1
+                )
+                Text(
+                    caption,
+                    style = AxisType.Telemetry.copy(color = accent.copy(alpha = 0.85f)),
+                    maxLines = 1
+                )
+            }
         }
-        Spacer(Modifier.height(2.dp))
-        Text(caption, style = AxisType.Caption, maxLines = 1)
+        Spacer(Modifier.height(8.dp))
+        TraceStub(accent)
     }
 }
 
-/** Small drawn glyph (vector, ~22dp). */
+/** A short circuit trace with a pad at the end — the board motif. */
+@Composable
+fun TraceStub(accent: Color, modifier: Modifier = Modifier) {
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(10.dp)
+    ) {
+        val y = size.height / 2f
+        drawLine(
+            color = accent.copy(alpha = 0.55f),
+            start = Offset(0f, y),
+            end = Offset(size.width * 0.72f, y),
+            strokeWidth = 2f
+        )
+        drawCircle(color = accent.copy(alpha = 0.85f), radius = 3.5f, center = Offset(size.width * 0.78f, y))
+        drawLine(
+            color = accent.copy(alpha = 0.35f),
+            start = Offset(size.width * 0.84f, y),
+            end = Offset(size.width, y),
+            strokeWidth = 1.5f
+        )
+    }
+}
+
+/**
+ * Hand-drawn glyph set. Drawing them (instead of an icon font) keeps the
+ * board's line weight consistent with the traces and avoids the 2000-icon
+ * dependency on the home path.
+ */
 @Composable
 fun Glyph(glyph: ChipGlyph, accent: Color = AccentCyan, size: Int = 22) {
+    val pulse by rememberInfiniteTransition(label = "glyph").animateFloat(
+        initialValue = 0.55f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1600), RepeatMode.Reverse),
+        label = "pulse"
+    )
     Canvas(modifier = Modifier.size(size.dp)) {
-        val s = this.size.minDimension
-        val stroke = Stroke(width = s * 0.09f)
+        val w = this.size.width
+        val h = this.size.height
+        val stroke = Stroke(width = w * 0.085f)
+        val c = Offset(w / 2f, h / 2f)
         when (glyph) {
             ChipGlyph.CORE -> {
-                drawRoundRect(
+                drawRect(
                     color = accent,
-                    topLeft = Offset(s * 0.18f, s * 0.18f),
-                    size = androidx.compose.ui.geometry.Size(s * 0.64f, s * 0.64f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(s * 0.12f),
+                    topLeft = Offset(w * 0.22f, h * 0.22f),
+                    size = Size(w * 0.56f, h * 0.56f),
                     style = stroke
                 )
-                drawCircle(color = accent, radius = s * 0.12f, center = Offset(s / 2, s / 2))
+                drawCircle(color = accent.copy(alpha = pulse), radius = w * 0.12f, center = c)
+                for (i in 0..2) {
+                    val off = w * (0.3f + i * 0.2f)
+                    drawLine(accent, Offset(off, 0f), Offset(off, h * 0.2f), strokeWidth = w * 0.06f)
+                    drawLine(accent, Offset(off, h * 0.8f), Offset(off, h), strokeWidth = w * 0.06f)
+                }
             }
             ChipGlyph.SENSE -> {
-                drawCircle(color = accent, radius = s * 0.10f, center = Offset(s / 2, s * 0.72f))
                 drawArc(
                     color = accent,
                     startAngle = 200f,
                     sweepAngle = 140f,
                     useCenter = false,
-                    topLeft = Offset(s * 0.20f, s * 0.26f),
-                    size = androidx.compose.ui.geometry.Size(s * 0.60f, s * 0.60f),
+                    topLeft = Offset(w * 0.05f, h * 0.28f),
+                    size = Size(w * 0.9f, h * 0.9f),
                     style = stroke
                 )
                 drawArc(
-                    color = accent.copy(alpha = 0.5f),
-                    startAngle = 200f,
-                    sweepAngle = 140f,
+                    color = accent.copy(alpha = 0.7f),
+                    startAngle = 220f,
+                    sweepAngle = 100f,
                     useCenter = false,
-                    topLeft = Offset(s * 0.05f, s * 0.10f),
-                    size = androidx.compose.ui.geometry.Size(s * 0.90f, s * 0.90f),
+                    topLeft = Offset(w * 0.22f, h * 0.42f),
+                    size = Size(w * 0.56f, h * 0.62f),
                     style = stroke
                 )
+                drawCircle(color = accent, radius = w * 0.08f, center = Offset(w * 0.5f, h * 0.78f))
             }
             ChipGlyph.LOGIC -> {
-                val path = Path().apply {
-                    moveTo(s * 0.20f, s * 0.30f)
-                    lineTo(s * 0.50f, s * 0.30f)
-                    lineTo(s * 0.50f, s * 0.70f)
-                    lineTo(s * 0.80f, s * 0.70f)
-                }
-                drawPath(path, accent, style = stroke)
-                drawCircle(color = accent, radius = s * 0.08f, center = Offset(s * 0.20f, s * 0.30f))
-                drawCircle(color = accent, radius = s * 0.08f, center = Offset(s * 0.80f, s * 0.70f))
+                drawLine(accent, Offset(0f, h * 0.5f), Offset(w * 0.28f, h * 0.5f), strokeWidth = w * 0.08f)
+                drawRect(
+                    color = accent,
+                    topLeft = Offset(w * 0.28f, h * 0.24f),
+                    size = Size(w * 0.44f, h * 0.52f),
+                    style = stroke
+                )
+                drawLine(accent, Offset(w * 0.72f, h * 0.5f), Offset(w, h * 0.5f), strokeWidth = w * 0.08f)
+                drawLine(
+                    accent.copy(alpha = 0.7f),
+                    Offset(w * 0.44f, h * 0.38f),
+                    Offset(w * 0.44f, h * 0.62f),
+                    strokeWidth = w * 0.06f
+                )
             }
             ChipGlyph.SAFE -> {
                 val path = Path().apply {
-                    moveTo(s * 0.5f, s * 0.12f)
-                    lineTo(s * 0.84f, s * 0.28f)
-                    lineTo(s * 0.84f, s * 0.56f)
-                    quadraticBezierTo(s * 0.84f, s * 0.86f, s * 0.5f, s * 0.92f)
-                    quadraticBezierTo(s * 0.16f, s * 0.86f, s * 0.16f, s * 0.56f)
-                    lineTo(s * 0.16f, s * 0.28f)
+                    moveTo(w * 0.5f, h * 0.12f)
+                    lineTo(w * 0.86f, h * 0.3f)
+                    lineTo(w * 0.86f, h * 0.55f)
+                    quadraticBezierTo(w * 0.86f, h * 0.86f, w * 0.5f, h * 0.94f)
+                    quadraticBezierTo(w * 0.14f, h * 0.86f, w * 0.14f, h * 0.55f)
+                    lineTo(w * 0.14f, h * 0.3f)
                     close()
                 }
-                drawPath(path, accent, style = stroke)
+                drawPath(path, color = accent, style = stroke)
+                drawCircle(color = accent.copy(alpha = pulse), radius = w * 0.08f, center = c)
             }
             ChipGlyph.VOICE -> {
-                drawLine(accent, Offset(s * 0.25f, s * 0.55f), Offset(s * 0.25f, s * 0.45f), s * 0.08f)
-                drawLine(accent, Offset(s * 0.42f, s * 0.70f), Offset(s * 0.42f, s * 0.30f), s * 0.08f)
-                drawLine(accent, Offset(s * 0.58f, s * 0.80f), Offset(s * 0.58f, s * 0.20f), s * 0.08f)
-                drawLine(accent, Offset(s * 0.75f, s * 0.62f), Offset(s * 0.75f, s * 0.38f), s * 0.08f)
-            }
-            ChipGlyph.VAULT -> {
                 drawRoundRect(
                     color = accent,
-                    topLeft = Offset(s * 0.22f, s * 0.40f),
-                    size = androidx.compose.ui.geometry.Size(s * 0.56f, s * 0.46f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(s * 0.08f),
+                    topLeft = Offset(w * 0.36f, h * 0.1f),
+                    size = Size(w * 0.28f, h * 0.48f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.14f),
+                    style = stroke
+                )
+                drawArc(
+                    color = accent,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.2f, h * 0.3f),
+                    size = Size(w * 0.6f, h * 0.5f),
+                    style = stroke
+                )
+                drawLine(accent, Offset(w * 0.5f, h * 0.8f), Offset(w * 0.5f, h * 0.94f), strokeWidth = w * 0.08f)
+            }
+            ChipGlyph.VAULT -> {
+                drawRect(
+                    color = accent,
+                    topLeft = Offset(w * 0.18f, h * 0.34f),
+                    size = Size(w * 0.64f, h * 0.5f),
                     style = stroke
                 )
                 drawArc(
@@ -170,22 +241,24 @@ fun Glyph(glyph: ChipGlyph, accent: Color = AccentCyan, size: Int = 22) {
                     startAngle = 180f,
                     sweepAngle = 180f,
                     useCenter = false,
-                    topLeft = Offset(s * 0.32f, s * 0.16f),
-                    size = androidx.compose.ui.geometry.Size(s * 0.36f, s * 0.36f),
+                    topLeft = Offset(w * 0.32f, h * 0.1f),
+                    size = Size(w * 0.36f, h * 0.4f),
                     style = stroke
                 )
+                drawCircle(color = accent.copy(alpha = pulse), radius = w * 0.07f, center = c)
             }
             ChipGlyph.TOOL -> {
-                drawLine(accent, Offset(s * 0.24f, s * 0.76f), Offset(s * 0.74f, s * 0.26f), s * 0.14f)
-                drawCircle(color = accent, radius = s * 0.13f, center = Offset(s * 0.76f, s * 0.24f), style = stroke)
+                drawLine(accent, Offset(w * 0.2f, h * 0.8f), Offset(w * 0.8f, h * 0.2f), strokeWidth = w * 0.12f)
+                drawCircle(color = accent, radius = w * 0.14f, center = Offset(w * 0.78f, h * 0.22f), style = stroke)
+                drawCircle(color = accent, radius = w * 0.14f, center = Offset(w * 0.22f, h * 0.78f), style = stroke)
             }
             ChipGlyph.WAVE -> {
                 val path = Path().apply {
-                    moveTo(s * 0.10f, s * 0.55f)
-                    quadraticBezierTo(s * 0.28f, s * 0.10f, s * 0.46f, s * 0.55f)
-                    quadraticBezierTo(s * 0.64f, s * 1.0f, s * 0.90f, s * 0.45f)
+                    moveTo(0f, h * 0.5f)
+                    cubicTo(w * 0.2f, h * 0.05f, w * 0.3f, h * 0.95f, w * 0.5f, h * 0.5f)
+                    cubicTo(w * 0.7f, h * 0.05f, w * 0.8f, h * 0.95f, w, h * 0.5f)
                 }
-                drawPath(path, accent, style = stroke)
+                drawPath(path, color = accent, style = stroke)
             }
         }
     }
@@ -254,35 +327,58 @@ fun HudRow(label: String, value: String, accent: Color = TextSecondary) {
     }
 }
 
-/** Header band with the AXIS silkscreen text and live clock. */
+/**
+ * The board's top rail: AXIS identity, live clock, and a status string
+ * (network · battery · charging). Silkscreen everywhere.
+ */
 @Composable
 fun BoardHeader(clock: String, status: String, accent: Color = AccentCyan) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Glyph(glyph = ChipGlyph.CORE, accent = accent, size = 18)
-            Spacer(Modifier.width(8.dp))
-            Text("AXIS // CORE", style = AxisType.Telemetry.copy(color = accent))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "AXIS",
+                    style = AxisType.Telemetry.copy(color = accent)
+                )
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .glow(accent, radius = 6.dp)
+                ) {
+                    Canvas(Modifier.size(6.dp)) {
+                        drawCircle(color = accent, radius = size.minDimension / 2f)
+                    }
+                }
+            }
+            Text(status, style = AxisType.Caption.copy(color = TextSecondary))
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(status, style = AxisType.Telemetry.copy(color = TextSecondary))
-            Spacer(Modifier.width(10.dp))
-            Text(clock, style = AxisType.Telemetry.copy(color = TextPrimary))
-        }
+        Text(clock, style = AxisType.Telemetry.copy(color = TextPrimary))
     }
 }
 
-/** Small inline pill used for subsystem state in headers. */
+/** Small status pill used by the telemetry strip (LED + label). */
 @Composable
 fun StatePill(text: String, color: Color) {
-    Box(modifier = Modifier.glass(corner = 50.dp, borderColor = color.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp)) {
-        Text(text, style = AxisType.Caption.copy(color = color))
+    Row(
+        modifier = Modifier
+            .glass(corner = 50.dp, borderColor = color.copy(alpha = 0.4f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Canvas(Modifier.size(6.dp)) {
+            drawCircle(color = color, radius = size.minDimension / 2f)
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(text, style = AxisType.Telemetry.copy(color = color))
     }
 }
 
-/** Shared accent for dangerous subsystems (kill switch armed, failures). */
-internal val DangerAccent = Danger
-internal val VioletAccent = AccentViolet
+/** Accent for the kill-switch state, shared by the board sections. */
+internal fun killAccent(killSwitch: Boolean): Color = if (killSwitch) Danger else AccentCyan
+
+/** Violet accent for automation surfaces. */
+internal val AutomationAccent: Color = AccentViolet

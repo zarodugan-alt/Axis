@@ -165,6 +165,7 @@ fun ToolRail(
                 stateLabel = if (s.torchOn) "ON" else "OFF",
                 on = s.torchOn,
                 glyph = ChipGlyph.TOOL,
+                enabled = state.flashAvailable,
                 modifier = Modifier.weight(1f),
                 onClick = { haptics(); onTorch(!s.torchOn) }
             )
@@ -192,7 +193,7 @@ fun ToolRail(
                 stateLabel = "${s.brightness * 100 / 255}%",
                 on = false,
                 glyph = ChipGlyph.WAVE,
-                enabled = s.canWriteSettings,
+                enabled = state.storageWrites,
                 modifier = Modifier.weight(1f),
                 onClick = { haptics(); onBrightness(-15) }
             )
@@ -201,7 +202,7 @@ fun ToolRail(
                 stateLabel = "${s.brightness * 100 / 255}%",
                 on = false,
                 glyph = ChipGlyph.WAVE,
-                enabled = s.canWriteSettings,
+                enabled = state.storageWrites,
                 modifier = Modifier.weight(1f),
                 onClick = { haptics(); onBrightness(15) }
             )
@@ -234,9 +235,9 @@ fun ToolRail(
             )
             ToolTile(
                 label = "SERVICES",
-                stateLabel = if (s.canWriteSettings) "OK" else "LIMITED",
-                on = s.canWriteSettings,
-                warn = !s.canWriteSettings,
+                stateLabel = if (state.screenAccess && state.notificationAccess) "OK" else "LIMITED",
+                on = state.screenAccess && state.notificationAccess,
+                warn = !(state.screenAccess && state.notificationAccess),
                 glyph = ChipGlyph.CORE,
                 modifier = Modifier.weight(1f),
                 onClick = { haptics(); onSettings("accessibility") }
@@ -384,8 +385,16 @@ fun TelemetryPanel(state: HomeState) {
         TelemetryReadout(
             values = listOf(
                 TelemetryValue("RAM", "${s.ramUsedPct}% · ${s.ramUsedMb}/${s.ramTotalMb} MB", s.ramUsedPct > 85),
-                TelemetryValue("STORAGE", "${s.storageUsedPct}% · ${"%.1f".format(s.storageFreeGb)} GB free", s.storageUsedPct > 90),
-                TelemetryValue("BATTERY", "${s.batteryPct}% · ${s.batteryTempC}°C", s.batteryPct in 1..15 || s.batteryTempC >= 42f),
+                TelemetryValue(
+                    "STORAGE",
+                    "${s.storageUsedPct}% · ${"%.1f".format(s.storageFreeGb)} GB free",
+                    s.storageUsedPct > 90
+                ),
+                TelemetryValue(
+                    "BATTERY",
+                    "${s.batteryPct}% · ${s.batteryTempC}°C",
+                    s.batteryPct in 1..15 || s.batteryTempC >= 42f
+                ),
                 TelemetryValue("UPTIME", formatUptime(s.uptimeMs)),
                 TelemetryValue("LINK", s.network + if (s.vpn) " · vpn" else "")
             )
