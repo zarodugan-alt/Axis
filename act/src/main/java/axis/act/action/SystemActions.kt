@@ -132,12 +132,16 @@ class SystemActions(private val context: Context) {
 
     suspend fun setTorch(on: Boolean): ActionResult = try {
         val cm = context.getSystemService(CameraManager::class.java)
-            ?: return ActionResult(false, "camera service unavailable")
+        if (cm == null) {
+            ActionResult(false, "camera service unavailable")
+        } else {
         val id = cm.cameraIdList.firstOrNull { cam ->
             cm.getCameraCharacteristics(cam)
                 .get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-        } ?: return ActionResult(false, "no flash unit on this device")
-        suspendCancellableCoroutine { cont ->
+        }
+        if (id == null) {
+            ActionResult(false, "no flash unit on this device")
+        } else suspendCancellableCoroutine { cont ->
             val callback = object : CameraManager.TorchCallback() {
                 override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
                     if (cameraId == id) {
@@ -158,6 +162,7 @@ class SystemActions(private val context: Context) {
                 cm.unregisterTorchCallback(callback)
                 if (cont.isActive) cont.resume(ActionResult(false, t.message ?: "torch failed"))
             }
+        }
         }
     } catch (t: Throwable) {
         ActionResult(false, t.message ?: "torch failed")
@@ -198,7 +203,7 @@ class SystemActions(private val context: Context) {
             "apps" -> Settings.ACTION_APPLICATION_SETTINGS
             "display" -> Settings.ACTION_DISPLAY_SETTINGS
             "sound" -> Settings.ACTION_SOUND_SETTINGS
-            "dnd", "do not disturb" -> Settings.ACTION_ZEN_MODE_ACCESS_SETTINGS
+            "dnd", "do not disturb" -> Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS
             "accessibility" -> Settings.ACTION_ACCESSIBILITY_SETTINGS
             "notification", "notification access" -> Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS
             "overlay", "appear on top" -> Settings.ACTION_MANAGE_OVERLAY_PERMISSION

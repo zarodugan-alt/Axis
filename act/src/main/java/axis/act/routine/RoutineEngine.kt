@@ -60,8 +60,8 @@ class RoutineEngine(
         if (ticker != null) return
         runningFlag.value = true
         bus.tryEmit(AxisEvent.CoreServiceState(true, "routines"))
-        seedLastRuns()
         ticker = scope.launch {
+            runCatching { seedLastRuns() }.onFailure { Timber.w(it, "routine seed failed") }
             while (true) {
                 runCatching { evaluate() }.onFailure { Timber.w(it, "routine tick failed") }
                 delay(TICK_MS)
