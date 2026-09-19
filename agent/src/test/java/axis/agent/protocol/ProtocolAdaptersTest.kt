@@ -2,7 +2,9 @@ package axis.agent.protocol
 
 import axis.agent.provider.ProviderCatalog
 import axis.kernel.json.MiniJson
+import axis.kernel.json.findFirst
 import axis.kernel.json.int
+import axis.kernel.json.obj
 import axis.kernel.json.objList
 import axis.kernel.json.str
 import org.junit.Assert.assertEquals
@@ -59,8 +61,14 @@ class ProtocolAdaptersTest {
     fun geminiRequestShapeAndStreamParsing() {
         val req = ChatRequest(ProviderCatalog.gemini, "gemini-1.5-flash", messages)
         val body = MiniJson.objectOrNull(GeminiAdapter.body(req, stream = true))!!
-        assertEquals("model", body.objList("contents")[0].str("role").let { if (it == "model") "model" else it })
-        assertEquals("be brief", body.findFirst("text"))
+        // System turns are hoisted into systemInstruction; contents carries only
+        // the user turn, so document-order findFirst sees "hello" first.
+        assertEquals("user", body.objList("contents")[0].str("role"))
+        assertEquals("hello", body.objList("contents")[0].objList("parts")[0].str("text"))
+        assertEquals(
+            "be brief",
+            body.obj("systemInstruction")!!.objList("parts")[0].str("text")
+        )
         assertEquals(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse",
             GeminiAdapter.endpoint(ProviderCatalog.gemini, "gemini-1.5-flash")
