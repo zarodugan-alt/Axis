@@ -34,3 +34,29 @@ val TextOnAccent = Color(0xFF04121A)
 // Tracks / scrims
 val TrackFill = Color(0x1AFFFFFF)
 val Scrim = Color(0x66000000)
+val ScrimLight = Color(0x33000000)
+
+// Divider
+val Divider = Color(0x1FFFFFFF)
+
+// Additional semantic borders
+val GlassBorderSuccess = Color(0x2E00E676)
+val GlassBorderWarning = Color(0x2EFFD740)
+
+// Extended accent palette
+val AccentCyanBright = Color(0xFF33EAFF)
+val AccentBlue = Color(0xFF2979FF)
+val AccentBlueDim = Color(0x332979FF)
+
+// Extended semantic colors
+val SuccessDim = Color(0x3300E676)
+val WarningDim = Color(0x33FFD740)
+val DangerDim = Color(0x33FF5252)
+val Info = Color(0xFF40C4FF)
+val InfoDim = Color(0x3340C4FF)
+
+// Additional text colors
+val TextDisabled = Color(0xFF3A4454)
+
+// Additional background
+val BgSurface = Color(0xFF111A28)
