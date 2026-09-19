@@ -58,9 +58,9 @@ fun ComingSoon(
 private fun ComingSoonPreview() {
     AxisTheme {
         ComingSoon(
-            phase = "Phase 3",
-            title = "Chat",
-            description = "The AI brain arrives in P3 — the launcher works fully until then."
+            phase = "Empty",
+            title = "Nothing here yet",
+            description = "Connect a provider in Settings → AI Providers to bring the agent online."
         )
     }
 }

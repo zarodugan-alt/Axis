@@ -154,6 +154,7 @@ fun ToolRail(
     onRotation: (Boolean) -> Unit,
     onBrightness: (Int) -> Unit,
     onSettings: (String) -> Unit,
+    onRoute: (String) -> Unit,
     onKillSwitch: (Boolean) -> Unit,
     haptics: () -> Unit
 ) {
@@ -240,7 +241,7 @@ fun ToolRail(
                 warn = !(state.screenAccess && state.notificationAccess),
                 glyph = ChipGlyph.CORE,
                 modifier = Modifier.weight(1f),
-                onClick = { haptics(); onSettings("accessibility") }
+                onClick = { haptics(); onRoute(Routes.SYSTEM_STATUS) }
             )
         }
     }

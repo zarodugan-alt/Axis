@@ -220,6 +220,7 @@ fun HomeScreen(
                 onRotation = vm::toggleRotation,
                 onBrightness = vm::nudgeBrightness,
                 onSettings = vm::openSettingsPage,
+                onRoute = onNavigate,
                 onKillSwitch = vm::setKillSwitch,
                 haptics = { AxisHaptics.press(view, state.ready) }
             )
