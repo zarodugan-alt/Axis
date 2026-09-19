@@ -130,8 +130,9 @@ fun ProviderDetailScreen(
                 Text(cfg.provider.blurb, style = AxisType.Caption, color = TextSecondary)
             }
             Spacer(Modifier.height(4.dp))
-            if (cfg.provider.freeTier != null) {
-                StatusPill(cfg.provider.freeTier, Success)
+            val freeTier = cfg.provider.freeTier
+            if (freeTier != null) {
+                StatusPill(freeTier, Success)
             }
 
             // ------------------------------------------------ custom endpoint

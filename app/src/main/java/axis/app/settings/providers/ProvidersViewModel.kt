@@ -57,7 +57,7 @@ class ProvidersViewModel @Inject constructor(
     fun saveKey(id: String, key: String) {
         viewModelScope.launch {
             store.saveKey(id, key)
-            val check = provider(id)?.let { KeyValidator.validate(it, key) }
+            val check = providerSync(id)?.let { KeyValidator.validate(it, key) }
             testState.value = TestState(
                 providerId = id,
                 ok = null,
@@ -95,7 +95,7 @@ class ProvidersViewModel @Inject constructor(
 
     /** Live check: sends a real 8-token request with the stored key. */
     fun testKey(id: String) {
-        val provider = provider(id) ?: return
+        val provider = providerSync(id) ?: return
         val model = configValue(id)?.modelOrDefault ?: provider.defaultModel
         viewModelScope.launch {
             testState.value = TestState(id, running = true, message = "Contacting ${provider.label}…")
@@ -135,7 +135,8 @@ class ProvidersViewModel @Inject constructor(
 
     fun customProvider(): AiProvider = store.customTemplate()
 
-    private suspend fun provider(id: String): AiProvider? =
+    /** Provider metadata is static + kept in a StateFlow, so no suspend needed. */
+    private fun providerSync(id: String): AiProvider? =
         store.providers.value.firstOrNull { it.id == id }
 
     private fun configValue(id: String): ProviderConfig? =
