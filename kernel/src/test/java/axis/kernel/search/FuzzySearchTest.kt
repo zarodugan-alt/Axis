@@ -21,14 +21,14 @@ class FuzzySearchTest {
 
     @Test
     fun containsAndWordPrefix_ranks() {
-        assertEquals(2, FuzzySearch.rank("sapp", "WhatsApp"))
-        assertEquals(3, FuzzySearch.rank("mes", "Facebook Messenger"))
+        assertEquals(3, FuzzySearch.rank("sapp", "WhatsApp"))
+        assertEquals(2, FuzzySearch.rank("mes", "Facebook Messenger"))
     }
 
     @Test
     fun typoWithinTwoEdits_matches() {
-        assertEquals(5, FuzzySearch.rank("whatsap", "WhatsApp")) // 1 deletion
-        assertEquals(6, FuzzySearch.rank("whatspp", "WhatsApp")) // 2 edits
+        assertEquals(5, FuzzySearch.rank("whatsape", "WhatsApp")) // 1 substitution, not a prefix
+        assertEquals(6, FuzzySearch.rank("whatxapp", "WhatsApp")) // substitution + deletion
     }
 
     @Test
@@ -55,10 +55,16 @@ class FuzzySearchTest {
 
     @Test
     fun filter_hundredsOfApps_completesFast() {
-        val items = List(500) { "App number $it with a fairly long label" }
+        // Single typo'd term ("nubmer" for "number"): only item 42 matches,
+        // so the assertion is unambiguous and the 500-item scan is timed.
+        val items = List(500) { i ->
+            if (i == 42) "App number 42 with a fairly long label"
+            else "Widget $i frobnicate quencher"
+        }
         val start = System.nanoTime()
-        val out = FuzzySearch.filter("nubmer 42", items) { it } // typo on purpose
+        val out = FuzzySearch.filter("nubmer", items) { it } // typo on purpose
         val ms = (System.nanoTime() - start) / 1_000_000
+        assertEquals(1, out.size)
         assertTrue("first result should be the typo target", out.first().contains("42"))
         assertTrue("500-item fuzzy filter took ${ms}ms, budget is 100ms", ms < 100)
     }

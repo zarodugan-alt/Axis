@@ -3,8 +3,11 @@ package axis.kernel.search
 /**
  * In-memory fuzzy matcher for app labels (drawer + home search, spec §S3).
  *
- * Ranking (lower is better): exact(0) < prefix(1) < contains(2) <
- * word-prefix(3) < levenshtein≤2(4+dist). Null = no match.
+ * Ranking (lower is better): exact(0) < prefix(1) < word-prefix(2) <
+ * contains(3) < levenshtein≤2(4+dist). Null = no match.
+ * Word-prefix outranks contains (a word-boundary hit beats a mid-word
+ * one) and is checked first so the rank stays reachable: every word
+ * prefix is trivially also contained in the label.
  * Allocation-light: lowercases once per call, early-exits the DP table.
  */
 object FuzzySearch {
@@ -16,9 +19,9 @@ object FuzzySearch {
         if (l.isEmpty()) return null
         if (l == q) return 0
         if (l.startsWith(q)) return 1
-        if (l.contains(q)) return 2
         val words = l.split(' ')
-        if (words.any { it.startsWith(q) }) return 3
+        if (words.any { it.startsWith(q) }) return 2
+        if (l.contains(q)) return 3
         var best = Int.MAX_VALUE
         for (w in words) {
             // Skip words whose length delta alone exceeds the budget.
