@@ -98,7 +98,7 @@ class DeviceStateRepository(private val context: Context) {
     private data class Battery(val pct: Int, val charging: Boolean, val tempC: Float, val voltageMv: Int)
 
     private fun readBattery(): Battery {
-        val intent: Intent? = try {
+        val intent = try {
             context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         } catch (_: Exception) {
             null
