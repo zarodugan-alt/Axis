@@ -42,7 +42,7 @@ class AxisNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         sbn ?: return
-        inbox.remove(sbn.key ?: "${sbn.packageName}:${sbn.id}", sbn.packageName)
+        inbox?.remove(sbn.key ?: "${sbn.packageName}:${sbn.id}", sbn.packageName)
     }
 
     private fun capture(sbn: StatusBarNotification) {
