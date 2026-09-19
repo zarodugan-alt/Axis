@@ -87,6 +87,7 @@ class PermissionChecks @Inject constructor(
         )
     }
 
+    @Suppress("DEPRECATION") // unsafeCheckOpNoThrow is 29+; minSdk is 28
     private fun usageGranted(): Boolean {
         return try {
             val appOps = context.getSystemService(AppOpsManager::class.java) ?: return false

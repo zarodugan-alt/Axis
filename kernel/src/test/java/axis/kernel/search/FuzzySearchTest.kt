@@ -28,7 +28,7 @@ class FuzzySearchTest {
     @Test
     fun typoWithinTwoEdits_matches() {
         assertEquals(5, FuzzySearch.rank("whatsape", "WhatsApp")) // 1 substitution, not a prefix
-        assertEquals(6, FuzzySearch.rank("whatxapp", "WhatsApp")) // substitution + deletion
+        assertEquals(6, FuzzySearch.rank("whatxxpp", "WhatsApp")) // two substitutions
     }
 
     @Test
@@ -41,7 +41,7 @@ class FuzzySearchTest {
     fun filter_sortsByRankThenLabel() {
         val items = listOf("Messenger", "WhatsApp", "Whatnot", "Settings")
         val out = FuzzySearch.filter("what", items) { it }
-        assertEquals(listOf("WhatsApp", "Whatnot"), out)
+        assertEquals(listOf("Whatnot", "WhatsApp"), out) // tie-break: lowercase label ("n" < "s")
     }
 
     @Test

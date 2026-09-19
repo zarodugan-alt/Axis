@@ -54,5 +54,6 @@ class DrawerViewModel @Inject constructor(
     fun uninstall(packageName: String) = repo.uninstall(packageName)
 
     /** Notification counts arrive with the P2 listener; always 0 in P1. */
+    @Suppress("UNUSED_PARAMETER") // P2 listener fills this in
     fun badgeCount(packageName: String): Int = 0
 }

@@ -31,7 +31,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -344,7 +344,7 @@ private fun AppActionSheet(
             }
         }
         Spacer(Modifier.height(8.dp))
-        SettingsNavRow("Open", onClick = onOpen, icon = Icons.Rounded.OpenInNew)
+        SettingsNavRow("Open", onClick = onOpen, icon = Icons.AutoMirrored.Rounded.OpenInNew)
         SettingsNavRow("App info", onClick = onAppInfo, icon = Icons.Rounded.Info)
         SettingsNavRow("Hide", onClick = onHide, icon = Icons.Rounded.VisibilityOff)
         SettingsNavRow("Uninstall", onClick = onUninstall, icon = Icons.Rounded.Delete)
